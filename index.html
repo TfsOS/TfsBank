@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFS Bank</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        header {
+            background-color: green;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            position: relative;
+        }
+        header button {
+            position: absolute;
+            right: 10px;
+            top: 10px;
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        .container {
+            padding: 20px;
+            text-align: center;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            width: 200px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: green;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .dashboard {
+            display: none;
+        }
+        .transaction-history {
+            margin-top: 20px;
+        }
+        .transaction {
+            border-bottom: 1px solid #ccc;
+            padding: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        TFS Bank
+        <button onclick="closeApp()">Close</button>
+    </header>
+
+    <div class="container">
+        <div id="home">
+            <h2>Welcome to TFS Bank</h2>
+            <button class="btn" onclick="showLogin()">Login</button>
+            <button class="btn" onclick="showRegister()">Create Account</button>
+        </div>
+
+        <div id="login" style="display: none;">
+            <h2>Login</h2>
+            <input type="text" id="loginAccountNumber" placeholder="Enter Account Number (10 digits)" maxlength="10">
+            <input type="password" id="loginTPIN" placeholder="Enter TPIN (4 digits)" maxlength="4">
+            <button class="btn" onclick="login()">Login</button>
+            <button class="btn" onclick="showHome()">Back</button>
+        </div>
+
+        <div id="register" style="display: none;">
+            <h2>Create Account</h2>
+            <input type="text" id="regAccountNumber" placeholder="Enter 10-digit Account Number" maxlength="10">
+            <input type="password" id="regTPIN" placeholder="Enter 4-digit TPIN" maxlength="4">
+            <button class="btn" onclick="createAccount()">Register</button>
+            <button class="btn" onclick="showHome()">Back</button>
+        </div>
+
+        <div id="dashboard" class="dashboard">
+            <h2>Dashboard</h2>
+            <p>Welcome, Account Number: <span id="accountNumberDisplay"></span></p>
+            <p>Total Balance: <span id="totalBalance"></span> TFS Cubit Money</p>
+
+            <h3>Make a Payment</h3>
+            <button class="btn" onclick="payFee()">Pay Fee (120 cubits)</button><br><br>
+            <input type="text" id="customPaymentRecipient" placeholder="Pay to (Recipient)">
+            <input type="number" id="customPaymentAmount" placeholder="Amount" min="1">
+            <button class="btn" onclick="makeCustomPayment()">Pay Custom Amount</button>
+
+            <h3>Transaction History</h3>
+            <div id="transactionHistory" class="transaction-history"></div>
+
+            <button class="btn" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        const initialBalance = 20000;
+
+        // Pre-registered accounts
+        const preRegisteredAccounts = {
+            8888888888: { tpin: "5678", balance: 20000, transactions: [] },
+            9999999999: { tpin: "1234", balance: 15000, transactions: [] },
+            7777777777: { tpin: "9876", balance: 30000, transactions: [] },
+            6666666666: { tpin: "4567", balance: 10000, transactions: [] },
+            5555555555: { tpin: "6789", balance: 25000, transactions: [] }
+        };
+
+        function closeApp() {
+            window.close();
+        }
+
+        function showLogin() {
+            document.getElementById('home').style.display = 'none';
+            document.getElementById('login').style.display = 'block';
+        }
+
+        function showRegister() {
+            document.getElementById('home').style.display = 'none';
+            document.getElementById('register').style.display = 'block';
+        }
+
+        function showHome() {
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('register').style.display = 'none';
+            document.getElementById('home').style.display = 'block';
+        }
+
+        function createAccount() {
+            const accountNumber = document.getElementById('regAccountNumber').value;
+            const tpin = document.getElementById('regTPIN').value;
+
+            if (accountNumber.length !== 10 || tpin.length !== 4) {
+                alert('Invalid account number or TPIN.');
+                return;
+            }
+
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            if (users[accountNumber] || preRegisteredAccounts[accountNumber]) {
+                alert('Account number already exists.');
+                return;
+            }
+
+            users[accountNumber] = { tpin: tpin, balance: initialBalance, transactions: [] };
+            localStorage.setItem('users', JSON.stringify(users));
+            alert('Account created successfully!');
+            showLogin();
+        }
+
+        function login() {
+            const accountNumber = document.getElementById('loginAccountNumber').value;
+            const tpin = document.getElementById('loginTPIN').value;
+
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const account = users[accountNumber] || preRegisteredAccounts[accountNumber];
+
+            if (account && account.tpin === tpin) {
+                showDashboard(accountNumber, account.balance, account.transactions);
+            } else {
+                alert('Invalid account number or TPIN.');
+            }
+        }
+
+        function showDashboard(accountNumber, balance, transactions) {
+            document.getElementById('login').style.display = 'none';
+            document.getElementById('register').style.display = 'none';
+            document.getElementById('home').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+            document.getElementById('accountNumberDisplay').textContent = accountNumber;
+            document.getElementById('totalBalance').textContent = balance;
+
+            updateTransactionHistory(transactions);
+        }
+
+        function payFee() {
+            const accountNumber = document.getElementById('accountNumberDisplay').textContent;
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const account = users[accountNumber] || preRegisteredAccounts[accountNumber];
+
+            if (account.balance >= 120) {
+                account.balance -= 120;
+                const transaction = `120 cubits paid to TFS FeeDept on ${new Date().toLocaleString()}`;
+                account.transactions.push(transaction);
+                localStorage.setItem('users', JSON.stringify(users));
+                document.getElementById('totalBalance').textContent = account.balance;
+                updateTransactionHistory(account.transactions);
+            } else {
+                alert('Insufficient balance.');
+            }
+        }
+
+        function makeCustomPayment() {
+            const recipient = document.getElementById('customPaymentRecipient').value;
+            const amount = parseInt(document.getElementById('customPaymentAmount').value, 10);
+
+            if (!recipient || isNaN(amount) || amount <= 0) {
+                alert('Please enter valid recipient and amount.');
+                return;
+            }
+
+            const accountNumber = document.getElementById('accountNumberDisplay').textContent;
+            const users = JSON.parse(localStorage.getItem('users') || '{}');
+            const account = users[accountNumber] || preRegisteredAccounts[accountNumber];
+
+            if (account.balance >= amount) {
+                account.balance -= amount;
+                const transaction = `${amount} cubits paid to ${recipient} on ${new Date().toLocaleString()}`;
+                account.transactions.push(transaction);
+                localStorage.setItem('users', JSON.stringify(users));
+                document.getElementById('totalBalance').textContent = account.balance;
+                updateTransactionHistory(account.transactions);
+            } else {
+                alert('Insufficient balance.');
+            }
+        }
+
+        function updateTransactionHistory(transactions) {
+            const historyDiv = document.getElementById('transactionHistory');
+            historyDiv.innerHTML = '';
+            transactions.forEach(transaction => {
+                const div = document.createElement('div');
+                div.className = 'transaction';
+                div.textContent = transaction;
+                historyDiv.appendChild(div);
+            });
+        }
+
+        function logout() {
+            document.getElementById('dashboard').style.display = 'none';
+            showHome();
+        }
+    </script>
+</body>
+  </html>
+  
